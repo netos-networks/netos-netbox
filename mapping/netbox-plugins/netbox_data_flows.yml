@@ -1,0 +1,100 @@
+netbox_data_flows:
+  name: "NetBox Data Flows"
+  description: "A NetBox plugin to document Data Flows between devices and applications."
+  git_url: "https://github.com/Alef-Burzmali/netbox-data-flows"
+  version_prefix: "netbox_data_flows-" # some tags in GitHub/GitLab have a "v" before them, some don't. Add a "v" here as required.
+  file_type: "tar.gz"
+  version_mapping:
+
+    - netbox_version: "4.1.3"
+      plugin_version: "1.0.4"
+
+    - netbox_version: "4.1.2"
+      plugin_version: "1.0.4"
+
+    - netbox_version: "4.1.1"
+      plugin_version: "1.0.4"
+
+    - netbox_version: "4.1.0"
+      plugin_version: "1.0.4"
+
+    - netbox_version: "4.0.11"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.10"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.9"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.8"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.7"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.6"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.5"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.4"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.3"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.2"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.1"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "4.0.0"
+      plugin_version: "0.9.0"
+
+    - netbox_version: "3.7.8"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.7"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.6"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.5"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.4"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.3"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.2"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.1"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.7.0"
+      plugin_version: "0.8.3-beta"
+
+    - netbox_version: "3.6.5"
+      plugin_version: "0.7.4-beta"
+
+    - netbox_version: "3.6.4"
+      plugin_version: "0.7.4-beta"
+ 
+    - netbox_version: "3.6.3"
+      plugin_version: "0.7.4-beta"
+
+    - netbox_version: "3.6.2"
+      plugin_version: "0.7.4-beta"
+
+    - netbox_version: "3.6.1"
+      plugin_version: "0.7.4-beta"
+
+    - netbox_version: "3.6.0"
+      plugin_version: "0.7.4-beta"

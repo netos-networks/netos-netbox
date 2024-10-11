@@ -1,0 +1,11 @@
+---
+# tasks file for netbox-csrf
+
+- name: Modify the CSRF_TRUSTED_ORIGINS Setting in settings.py
+  lineinfile:
+    path: "{{ NETBOX_INSTALL_DIR }}/netbox/netbox/settings.py"
+    regexp: '^CSRF_TRUSTED_ORIGINS\s*=.*'
+    line: "CSRF_TRUSTED_ORIGINS = getattr(configuration, 'CSRF_TRUSTED_ORIGINS', ['http://{{ DOMAIN }}', 'https://{{ DOMAIN }}', 'http://*.{{ DOMAIN }}', 'https://*.{{ DOMAIN }}'])"
+    backrefs: yes
+    state: present
+  notify: restart netbox services

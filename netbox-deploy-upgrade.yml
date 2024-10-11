@@ -1,0 +1,11 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - ./vars/env-netbox-settings.yml
+  roles:
+    - role: netbox-deploy-check-path
+    - role: netbox-deploy
+      vars:
+        NETBOX_RELEASE: "{{ next_version }}"  # Passing next_version as NETBOX_RELEASE
+    - role: netbox-restart

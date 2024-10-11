@@ -1,0 +1,1 @@
+NETOS_NETBOX_GIT: "{{ lookup('env', 'NETOS_NETBOX_GIT') | default('https://github.com/netos-networks/netos-netbox') }}"

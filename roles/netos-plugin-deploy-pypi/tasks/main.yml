@@ -1,0 +1,61 @@
+---
+# tasks file for netos-plugin-deploy
+
+- name: Fetch and download the latest plugin using bash script
+  shell: "/netos/netos-netbox/scripts/bash/gitlab-pypi-plugin-fetcher.sh {{ REPO_PYPI }} {{ CUSTOMER_TOKEN_PYPI }} {{ PLUGIN_ADD }}"
+  register: fetch_output
+  ignore_errors: yes
+  
+- name: Check if the Netos plugin download succeeded
+  fail:
+    msg: "Plugin failed, check CUSTOMER_TOKEN_PYPI variable is correct"
+  when: fetch_output.stdout == "FAILED"
+
+- name: Set the plugin file name as a variable to pass to pip
+  set_fact:
+    plugin_file_name: "{{ fetch_output.stdout }}"
+  when: fetch_output.stdout != "FAILED"
+
+- name: Get current enabled NetBox plugins from the NetBox configuration.py file
+  shell: "grep '^PLUGINS = ' /opt/netbox/netbox/netbox/configuration.py | sed -e 's/^PLUGINS = //' -e 's/[][]//g'"
+  register: current_plugins
+  failed_when: current_plugins.rc > 1
+  no_log: true
+
+- name: Prepare a list of existing plugins
+  set_fact:
+    existing_plugins: "{{ current_plugins.stdout.split(',') | map('trim') | map('regex_replace', \"'\", '') | select('truthy') }}"
+
+- name: Add {{ PLUGIN_ADD }} to current plugins list if not already present
+  set_fact:
+    updated_plugins: "{{ (existing_plugins + [PLUGIN_ADD] | select('truthy')) | unique }}"
+  no_log: true
+
+- name: Update PLUGINS entry in configuration.py with values of Netos and existing plugins
+  lineinfile:
+    path: /opt/netbox/netbox/netbox/configuration.py
+    regexp: '^PLUGINS = .*'
+    line: "PLUGINS = [{{ updated_plugins | map('regex_replace', '^', \"'\") | map('regex_replace', '$', \"'\") | join(', ') }}]"
+    backup: yes
+
+- name: Install the plugin {{ plugin_file_name }} using pip
+  pip:
+    name: "/netos/working-dir/netos-plugins/{{ plugin_file_name }}"
+    virtualenv: /opt/netbox/venv
+    virtualenv_site_packages: yes
+
+- name: Run migrations for "{{ PLUGIN_ADD }}"
+  command: "/opt/netbox/venv/bin/python3 /opt/netbox/netbox/manage.py migrate {{ PLUGIN_ADD }}"
+
+- name: Run collectstatic for NetBox
+  command: "/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input"
+
+- name: Run upgrade for {{ PLUGIN_ADD }} via pip (local execution)
+  pip:
+    name: "/netos/working-dir/netos-plugins/{{ plugin_file_name }}"
+    extra_args: "--upgrade --no-cache-dir"
+    virtualenv: /opt/netbox/venv
+    virtualenv_site_packages: yes
+  delegate_to: localhost
+  run_once: true
+

@@ -1,0 +1,12 @@
+---
+# tasks file for netbox-restart
+
+- name: Restart NetBox process and queuing process (RQ)
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - netbox
+    - netbox-rq

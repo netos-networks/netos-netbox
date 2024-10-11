@@ -1,0 +1,157 @@
+---
+# Get the current NetBox version from the API so we can compare it against the plugin versions
+# in the mapping table to check compatability
+
+- name: Query NetBox status API to capture version and plugins
+  uri:
+    url: "http://127.0.0.1:8001/api/status/" # If NetBox is down, everything will fail
+    method: GET
+    return_content: yes
+    status_code: 200
+    headers:
+      Content-Type: "application/json"
+  register: api_response
+
+- name: Parse NetBox version to check plugin compatability
+  set_fact:
+    netbox_version: "{{ api_response.json['netbox-version'] }}"
+
+- name: Get plugin version mapping
+  ansible.builtin.slurp:
+    src: /netos/netos-netbox/mapping/netbox-plugins/{{ PLUGIN_ADD }}.yml
+  register: slurped_file
+
+- name: Decode the {{ PLUGIN_ADD }} content from the YAML mapping file
+  set_fact:
+    plugin_mapping: "{{ slurped_file.content | b64decode | from_yaml }}"
+
+- name: Check for current NetBox version in YAML mapping file
+  set_fact:
+    version_mapping: "{{ plugin_mapping[item].version_mapping }}"
+  with_items: "{{ plugin_mapping.keys() }}"
+  when: plugin_mapping[item].version_mapping is defined
+
+- name: Extract required plugin version based on current NetBox version {{ netbox_version }}
+  set_fact:
+    plugin_version: "{{ item.plugin_version }}"
+  with_items: "{{ version_mapping }}"
+  when: netbox_version == item.netbox_version
+
+- name: Fail if plugin {{ PLUGIN_ADD }} is unsupported on NetBox {{ netbox_version }}
+  fail:
+    msg: "The plugin {{ PLUGIN_ADD }} is not supported in NetBox version {{ netbox_version }}"
+  when: plugin_version is not defined
+
+# Structure the URL requests, i.e. collect the plugin version, prefix (e.g. "v" before the version name),
+# get the URL, and also the file type (some plugins use ZIP, others TAR.GZ)
+
+- name: Get the git repo URL from the plugin YAML mapping file
+  set_fact:
+    plugin_repo: "{{ item.value.git_url }}"
+  with_items: "{{ plugin_mapping | dict2items }}"
+  when: item.value.git_url is defined
+
+- name: Get the version prefix for the GitHub/GitLab tag from the plugin YAML mapping file
+  set_fact:
+    version_prefix: "{{ plugin_mapping[item.key].version_prefix }}"
+  with_dict: "{{ plugin_mapping }}"
+  when: plugin_mapping[item.key].version_prefix is defined
+
+- name: Get the file type (e.g. ZIP or TAR.GZ) from the plugin YAML mapping file
+  set_fact:
+    file_type: "{{ plugin_mapping[item.key].file_type }}"
+  with_dict: "{{ plugin_mapping }}"
+  when: plugin_mapping[item.key].file_type is defined
+
+# The GitHub and GitLab download URL structures are different. The "if" logic detects "github" or "gitlab"
+# and changes the URL structure accordingly. This is a bit hacky and needs a lot more testing on the
+# GitLab side. The test case for GitLab was specifically the IP Fabric GitLab repo.
+
+- name: Construct plugin download URL
+  set_fact:
+    plugin_download_url: >-
+      {% if plugin_repo is defined and "gitlab" in plugin_repo %}
+        {{ plugin_repo }}/-/archive/{{ version_prefix }}{{ plugin_version }}/{{ PLUGIN_ADD }}-{{ version_prefix }}{{ plugin_version }}.{{ file_type }}
+      {% elif plugin_repo is defined and "github" in plugin_repo %}
+        {{ plugin_repo }}/archive/refs/tags/{{ version_prefix }}{{ plugin_version }}.{{ file_type }}
+      {% endif %}
+  when: 
+    - plugin_repo is defined
+    - plugin_version is defined
+    - version_prefix is defined
+    - file_type is defined
+
+# Download the plugin
+
+- name: Download {{ PLUGIN_ADD }} plugin version {{ plugin_version }} from the git repo using wget
+  shell: |
+    wget -O /netos/working-dir/netbox-plugins/{{ PLUGIN_ADD }}-{{ version_prefix }}{{ plugin_version }}.{{ file_type }} \
+         {{ plugin_download_url }}
+  when: plugin_download_url is defined
+
+# Update the configuration.py file with the plugin name if it does not exist. If the plugin installation fails
+# run the Remove Plugin playbook in Semaphore to remove the plugin name.
+
+- name: Get current enabled NetBox plugins from the NetBox configuration.py file
+  shell: "grep '^PLUGINS = ' /opt/netbox/netbox/netbox/configuration.py | sed -e 's/^PLUGINS = //' -e 's/[][]//g'"
+  register: current_plugins
+  failed_when: current_plugins.rc > 1
+  no_log: true
+
+- name: Prepare a list of existing plugins in configuration.py
+  set_fact:
+    existing_plugins: "{{ current_plugins.stdout.split(',') | map('trim') | map('regex_replace', \"'\", '') | select('truthy') }}"
+  no_log: true
+
+- name: Add {{ PLUGIN_ADD }} to current plugins list if not already present in configuration.py
+  set_fact:
+    updated_plugins: "{{ (existing_plugins + [PLUGIN_ADD] | select('truthy')) | unique }}"
+  no_log: true
+
+- name: Update PLUGINS entry in configuration.py with values of Netos and existing plugins
+  lineinfile:
+    path: /opt/netbox/netbox/netbox/configuration.py
+    regexp: '^PLUGINS = .*'
+    line: "PLUGINS = [{{ updated_plugins | map('regex_replace', '^', \"'\") | map('regex_replace', '$', \"'\") | join(', ') }}]"
+    backup: yes
+
+# Install the plugin and run the migrations.
+
+- name: Install {{ PLUGIN_ADD }} version {{ plugin_version }} plugin using pip from /netos/working-dir/netbox-plugins/
+  pip:
+    name: /netos/working-dir/netbox-plugins/{{ PLUGIN_ADD }}-{{ version_prefix }}{{ plugin_version }}.{{ file_type }}
+    virtualenv: /opt/netbox/venv
+    virtualenv_site_packages: yes
+  notify:
+    - restart netbox services
+
+- name: Run migrations for {{ PLUGIN_ADD }} version {{ plugin_version }}
+  command: "/opt/netbox/venv/bin/python3 /opt/netbox/netbox/manage.py migrate {{ PLUGIN_ADD }}"
+  register: migrate_output
+  notify:
+    - restart netbox services
+  failed_when: 
+    - migrate_output.rc != 0
+    - "'does not have migrations' not in migrate_output.stderr" # not all plugins have migrations, this will ignore errors caused by this
+
+- name: Run collectstatic for NetBox
+  command: "/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input"
+  notify: 
+    - restart netbox services
+
+- name: Run upgrade for {{ PLUGIN_ADD }} version {{ plugin_version }} via pip (local execution)
+  pip:
+    name: "/netos/working-dir/netbox-plugins/{{ PLUGIN_ADD }}-{{ version_prefix }}{{ plugin_version }}.{{ file_type }}"
+    extra_args: "--upgrade --no-cache-dir"
+    virtualenv: /opt/netbox/venv
+    virtualenv_site_packages: yes
+  delegate_to: localhost
+  run_once: true
+
+#- name: Ensure {{ PLUGIN_ADD }} is present in /opt/netbox/local_requirements.txt
+#  lineinfile:
+#    path: /opt/netbox/local_requirements.txt
+#    line: "{{ PLUGIN_ADD }}"
+#    state: present
+#    create: yes
+#  when: "'{{ PLUGIN_ADD }}' not in lookup('file', '/opt/netbox/local_requirements.txt')"

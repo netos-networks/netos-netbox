@@ -1,0 +1,88 @@
+netbox_bgp:
+  name: "NetBox BGP"
+  description: "A NetBox plugin for BGP related objects documentation."
+  git_url: "https://github.com/netbox-community/netbox-bgp"
+  version_prefix: "v" # some tags in GitHub/GitLab have a "v" before them, some don't. Add a "v" here as required.
+  file_type: "zip"
+  version_mapping:
+
+    - netbox_version: "4.0.11"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.10"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.9"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.8"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.7"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.6"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.5"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.4"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.3"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.2"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.1"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "4.0.0"
+      plugin_version: "0.13.2"
+
+    - netbox_version: "3.7.8"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.7"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.6"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.5"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.4"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.3"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.2"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.1"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.7.0"
+      plugin_version: "0.12.1"
+
+    - netbox_version: "3.6.5"
+      plugin_version: "0.11.1"
+
+    - netbox_version: "3.6.4"
+      plugin_version: "0.11.1"
+ 
+    - netbox_version: "3.6.3"
+      plugin_version: "0.11.1"
+
+    - netbox_version: "3.6.2"
+      plugin_version: "0.11.1"
+
+    - netbox_version: "3.6.1"
+      plugin_version: "0.11.1"
+
+    - netbox_version: "3.6.0"
+      plugin_version: "0.11.1"

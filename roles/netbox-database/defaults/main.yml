@@ -1,0 +1,3 @@
+---
+# defaults file for netbox-database
+POSTGRESQL_VERSION: 16

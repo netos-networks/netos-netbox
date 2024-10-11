@@ -1,0 +1,43 @@
+---
+# tasks file for netbox-plugin-deploy
+
+- name: Query NetBox status API to capture current NetBox version
+  uri:
+    url: "http://127.0.0.1:8001/api/status/"
+    method: GET
+    return_content: yes
+    status_code: 200
+    headers:
+      Content-Type: "application/json"
+  register: api_response
+
+- name: Parse NetBox version
+  set_fact:
+    netbox_version: "{{ api_response.json['netbox-version'] }}"
+
+- name: Read upgrade paths from /netos/netos-netbox/mapping/netbox-upgrade/netbox-upgrade-paths.yml
+  ansible.builtin.slurp:
+    src: /netos/netos-netbox/mapping/netbox-upgrade/netbox-upgrade-paths.yml
+  register: upgrade_paths_file
+
+- name: Decode the upgrade paths content from the YAML file
+  set_fact:
+    upgrade_paths_full: "{{ upgrade_paths_file.content | b64decode | from_yaml }}"
+
+- name: Extract the actual upgrade paths from our current version {{ netbox_version }}
+  set_fact:
+    upgrade_paths: "{{ upgrade_paths_full['netbox_upgrade_paths'] }}"
+
+- name: Check if the current version {{ netbox_version }} exists in the upgrade paths
+  fail:
+    msg: "The current NetBox version {{ netbox_version }} does not exist in the upgrade paths file."
+  when: netbox_version not in upgrade_paths
+
+- name: Find upgrade path from {{ netbox_version }}
+  set_fact:
+    next_version: "{{ upgrade_paths[netbox_version].patch if upgrade_paths[netbox_version].patch != netbox_version else upgrade_paths[netbox_version].next_major }}"
+
+- name: Output suggested upgrade path from {{ netbox_version }}
+  debug:
+    msg: |
+      Currently running NetBox v{{ netbox_version }}, suggested upgrade is v{{ next_version }}

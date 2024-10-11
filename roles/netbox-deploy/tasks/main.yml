@@ -1,0 +1,214 @@
+---
+# tasks file for netbox
+- name: Install required packages with apt for NetBox
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-venv
+      - python3-tk
+      - python3-dev
+      - build-essential
+      - libxml2-dev
+      - libxslt1-dev
+      - libffi-dev
+      - libpq-dev
+      - libssl-dev
+      - zlib1g-dev
+      - git
+      - redis-server
+    state: present
+    update_cache: yes
+  register: apt_result
+  retries: 10
+  delay: 20
+  until: apt_result is succeeded
+
+- name: Ensure NetBox directory is deleted for a clean install
+  file:
+    path: "{{ NETBOX_INSTALL_DIR }}"
+    state: absent
+
+- name: Create netbox operating system user account
+  user:
+    name: netbox
+    system: True
+
+- name: Ensure {{ NETBOX_INSTALL_DIR }} directory exists
+  file:
+    path: "{{ NETBOX_INSTALL_DIR }}"
+    state: directory
+    owner: netbox
+    group: netbox
+
+#- name: "Fix Git Permission issues on {{ NETBOX_INSTALL_DIR }}"
+#  shell: "git config --global --add safe.directory {{ NETBOX_INSTALL_DIR }}"
+
+- name: Clone NetBox repository v{{ NETBOX_RELEASE }} from public GitHub
+  become_user: netbox
+  git:
+    repo: "{{ NETBOX_REPO }}"
+    dest: "{{ NETBOX_INSTALL_DIR  }}"
+    version: "v{{ NETBOX_RELEASE }}"
+    clone: yes
+    update: no
+
+- name: "Ensure {{ NETBOX_INSTALL_DIR  }}/netbox/media and its contents is owned by the netbox system user"
+  file:
+    path: "{{ NETBOX_INSTALL_DIR  }}/netbox/media"
+    owner: netbox
+    group: netbox
+    recurse: yes
+
+- name: Copy the NetBox configuration.py file
+  template:
+    src: configuration.py
+    dest: "{{ NETBOX_INSTALL_DIR  }}/netbox/netbox/configuration.py"
+
+- name: Remove existing virtual environments if they exist
+  file: 
+    path: "{{ NETBOX_INSTALL_DIR }}/venv"
+    state: absent
+
+- name: Create Python virtual environment
+  shell: python3 -m venv {{ NETBOX_INSTALL_DIR }}/venv
+
+- name: Install required packages from requirements.txt for v{{ NETBOX_RELEASE }} using pip
+  pip:
+    requirements: "{{ NETBOX_INSTALL_DIR }}/requirements.txt"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+
+- name: Apply Django database migrations
+  django_manage: 
+    command: migrate
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  environment:
+    DATABASE_URL: "postgres://{{ NETBOX_DB_USER }}:{{ NETBOX_DB_PASSWORD }}@127.0.0.1:5432/{{ NETBOX_DB_NAME }}"
+
+- name: Collect Django static files
+  django_manage: 
+    command: collectstatic
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+
+- name: Recursively change ownership of the NetBox directory and its contents to netbox
+  file:
+    path: "{{ NETBOX_INSTALL_DIR }}/netbox/{{ item }}"
+    state: directory
+    recurse: yes
+    owner: netbox
+    group: netbox
+  loop:
+    - media
+    - reports
+    - scripts
+
+- name: Build the local NetBox documentation
+  shell: venv/bin/mkdocs build
+  args:
+    chdir: "{{ NETBOX_INSTALL_DIR }}"
+
+- name: Delete any stale content types
+  django_manage: 
+    command: "remove_stale_contenttypes --no-input"
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  ignore_errors: yes
+
+- name: Delete any expired user sessions
+  django_manage: 
+    command: "clearsessions"
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  ignore_errors: yes
+
+- name: Clear the NetBox cache
+  django_manage: 
+    command: "clearcache"
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  ignore_errors: yes
+
+- name: Create Django super user for netbox
+  django_manage: 
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    command: "createsuperuser --noinput"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  environment:
+    - DJANGO_SUPERUSER_USERNAME: "{{ SUPER_USER_USERNAME }}"
+    - DJANGO_SUPERUSER_PASSWORD: "{{ SUPER_USER_PASSWORD }}"
+    - DJANGO_SUPERUSER_EMAIL: "{{ SUPER_USER_EMAIL }}"
+  ignore_errors: yes
+
+- name: Copy gunicorn config
+  copy:
+    src: "{{NETBOX_INSTALL_DIR }}/contrib/gunicorn.py"
+    dest: "{{NETBOX_INSTALL_DIR }}/gunicorn.py"
+    remote_src: yes
+
+- name: Copy systemd files so NetBox runs as a service
+  copy:
+    src: "{{NETBOX_INSTALL_DIR }}/contrib/{{ item }}.service"
+    dest: "/etc/systemd/system/{{ item }}.service"
+    remote_src: yes
+  with_items:
+    - netbox
+    - netbox-rq
+
+- name: Copy netbox-rq systemd file so NetBox is managed as a service
+  template:
+    src: "{{ item }}.service"
+    dest: "/etc/systemd/system/{{ item }}.service"
+  with_items:
+    - netbox-rq
+
+- name: Ensure netbox and netbox-rq services are started and enabled
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - netbox
+    - netbox-rq
+
+# tasks file for netbox-backup
+- name: Add Postgresql ubuntu apt key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+
+- name: Get lsb_release version for Ubuntu
+  shell: lsb_release -cs
+  register: lsb_release
+
+- name: "Add Postgresql Repository for {{ lsb_release.stdout }}"
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ lsb_release.stdout }}-pgdg main"
+    state: present
+
+- name: Ensure postgresql client is installed
+  apt:
+    name: postgresql-client
+    state: present
+  register: apt_result
+  retries: 10
+  delay: 20
+  until: apt_result is succeeded
+
+- name: Ensure requisite directories are created
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /netos/backups
+    - /netos/backups/netbox
+
+- name: ensure .pgpass file is created
+  template:
+    src: .pgpass
+    dest: /root/.pgpass
+    mode: 0600
+    owner: root
+    group: root

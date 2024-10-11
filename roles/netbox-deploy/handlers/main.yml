@@ -1,0 +1,11 @@
+---
+# handlers file for netbox-post-deploy
+- name: restart netbox services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - netbox
+    - netbox-rq

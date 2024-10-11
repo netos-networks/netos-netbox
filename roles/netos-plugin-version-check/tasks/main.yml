@@ -1,0 +1,42 @@
+---
+# tasks file for netos-plugin-version-check
+
+- name: Query NetBox status API
+  uri:
+    url: "http://127.0.0.1:8001/api/status/"
+    method: GET
+    return_content: yes
+    status_code: 200
+    headers:
+      Content-Type: "application/json"
+  register: api_response
+
+- name: Extract netbox-version and plugins
+  set_fact:
+    netbox_version: "{{ (api_response.content | from_json)['netbox-version'] }}"
+    plugins: "{{ (api_response.content | from_json)['plugins'] }}"
+
+# Display each output as a separate task, with conditional checks
+- name: Current running NetBox version
+  debug:
+    msg: "NetBox Version: {{ netbox_version }}"
+
+- name: Netos Core plugin version
+  debug:
+    msg: "netos: {{ plugins['netos'] }}"
+  when: "'netos' in plugins"
+
+- name: Netos Insights (Reporting) plugin version
+  debug:
+    msg: "netos_reporting: {{ plugins['netos_reporting'] }}"
+  when: "'netos_reporting' in plugins"
+
+- name: Netos Projects (Model Builder) plugin version
+  debug:
+    msg: "netos_model_builder: {{ plugins['netos_model_builder'] }}"
+  when: "'netos_model_builder' in plugins"
+
+- name: Netos Fabric plugin version
+  debug:
+    msg: "netos_fabric: {{ plugins['netos_fabric'] }}"
+  when: "'netos_fabric' in plugins"

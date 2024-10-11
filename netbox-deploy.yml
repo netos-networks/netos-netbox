@@ -1,0 +1,163 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - ./vars/env-netbox-settings.yml
+
+  tasks:
+    - name: Set NetBox release version to v4.1.3
+      set_fact:
+        NETBOX_RELEASE: 4.1.3
+      tags: 4.1.3
+
+    - name: Set NetBox release version to v4.1.2
+      set_fact:
+        NETBOX_RELEASE: 4.1.2
+      tags: 4.1.2
+
+    - name: Set NetBox release version to v4.1.1
+      set_fact:
+        NETBOX_RELEASE: 4.1.1
+      tags: 4.1.1
+
+    - name: Set NetBox release version to v4.1.0
+      set_fact:
+        NETBOX_RELEASE: 4.1.0
+      tags: 4.1.0
+
+    - name: Set NetBox release version to v4.0.11
+      set_fact:
+        NETBOX_RELEASE: 4.0.11
+      tags: 4.0.11
+
+    - name: Set NetBox release version to v4.0.10
+      set_fact:
+        NETBOX_RELEASE: 4.0.10
+      tags: 4.0.10
+
+    - name: Set NetBox release version to v4.0.9
+      set_fact:
+        NETBOX_RELEASE: 4.0.9
+      tags: 4.0.9
+
+    - name: Set NetBox release version to v4.0.8
+      set_fact:
+        NETBOX_RELEASE: 4.0.8
+      tags: 4.0.8
+
+    - name: Set NetBox release version to v4.0.7
+      set_fact:
+        NETBOX_RELEASE: 4.0.7
+      tags: 4.0.7
+
+    - name: Set NetBox release version to v4.0.6
+      set_fact:
+        NETBOX_RELEASE: 4.0.6
+      tags: 4.0.6
+
+    - name: Set NetBox release version to v4.0.5
+      set_fact:
+        NETBOX_RELEASE: 4.0.5
+      tags: 4.0.5
+
+    - name: Set NetBox release version to v4.0.3
+      set_fact:
+        NETBOX_RELEASE: 4.0.3
+      tags: 4.0.3
+
+    - name: Set NetBox release version to v4.0.2
+      set_fact:
+        NETBOX_RELEASE: 4.0.2
+      tags: 4.0.2
+
+    - name: Set NetBox release version to v4.0.1
+      set_fact:
+        NETBOX_RELEASE: 4.0.1
+      tags: 4.0.1
+
+    - name: Set NetBox release version to v4.0.0
+      set_fact:
+        NETBOX_RELEASE: 4.0.0
+      tags: 4.0.0
+
+    - name: Set NetBox release version to v3.7.8
+      set_fact:
+        NETBOX_RELEASE: 3.7.8
+      tags: 3.7.8
+
+    - name: Set NetBox release version to v3.7.7
+      set_fact:
+        NETBOX_RELEASE: 3.7.7
+      tags: 3.7.7
+
+    - name: Set NetBox release version to v3.7.6
+      set_fact:
+        NETBOX_RELEASE: 3.7.6
+      tags: 3.7.6
+
+    - name: Set NetBox release version to v3.7.5
+      set_fact:
+        NETBOX_RELEASE: 3.7.5
+      tags: 3.7.5
+
+    - name: Set NetBox release version to v3.7.4
+      set_fact:
+        NETBOX_RELEASE: 3.7.4
+      tags: 3.7.4
+
+    - name: Set NetBox release version to v3.7.3
+      set_fact:
+        NETBOX_RELEASE: 3.7.3
+      tags: 3.7.3
+
+    - name: Set NetBox release version to v3.7.2
+      set_fact:
+        NETBOX_RELEASE: 3.7.2
+      tags: 3.7.2
+
+    - name: Set NetBox release version to v3.7.1
+      set_fact:
+        NETBOX_RELEASE: 3.7.1
+      tags: 3.7.1
+
+    - name: Set NetBox release version to v3.7.0
+      set_fact:
+        NETBOX_RELEASE: 3.7.0
+      tags: 3.7.0
+
+    - name: Set NetBox release version to v3.6.9
+      set_fact:
+        NETBOX_RELEASE: 3.6.9
+      tags: 3.6.9
+
+    - name: Set NetBox release version to v3.6.8
+      set_fact:
+        NETBOX_RELEASE: 3.6.8
+      tags: 3.6.8
+
+    - name: Set NetBox release version to v3.6.7
+      set_fact:
+        NETBOX_RELEASE: 3.6.7
+      tags: 3.6.7
+
+    - name: Set NetBox release version to v3.6.6
+      set_fact:
+        NETBOX_RELEASE: 3.6.6
+      tags: 3.6.6
+
+    - name: Set NetBox release version to v3.6.5
+      set_fact:
+        NETBOX_RELEASE: 3.6.5
+      tags: 3.6.5
+
+    - name: Import netbox-database role
+      import_role:
+        name: netbox-database
+      tags: always
+
+    - name: Import netbox-deploy role with NETBOX_RELEASE variable
+      import_role:
+        name: netbox-deploy
+      vars:
+        NETBOX_RELEASE: "{{ NETBOX_RELEASE }}"
+      tags: always

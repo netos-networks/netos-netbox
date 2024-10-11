@@ -1,0 +1,10 @@
+# handlers file for netbox-csrf
+- name: restart netbox services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - netbox
+    - netbox-rq

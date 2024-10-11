@@ -1,0 +1,82 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - ./vars/env-netos-plugins.yml
+
+  tasks:
+    - name: Check whether Netos Core plugin tag is set in Semaphore
+      set_fact:
+        NETOS_CORE_PLUGIN_ADD: "netos-core"
+      tags: netos-core
+
+    - name: Check whether Netos Insights plugin tag is set in Semaphore
+      set_fact:
+        NETOS_INSIGHTS_PLUGIN_ADD: "netos-insights"
+      tags: netos-insights
+
+    - name: Check whether Netos Projects plugin tag is set in Semaphore
+      set_fact:
+        NETOS_PROJECTS_PLUGIN_ADD: "netos-projects"
+      tags: netos-projects
+
+    - name: Check whether Netos Fabric plugin tag is set in Semaphore
+      set_fact:
+        NETOS_FABRIC_PLUGIN_ADD: "netos-fabric"
+      tags: netos-fabric
+
+    - name: Check whether required Python packages are installed for Netos plugins
+      import_role:
+        name: netos-plugin-dependency-check
+      tags: always
+
+    # For Core Plugin
+    - name: Deploy Netos Core via Netos Internal PyPI
+      import_role:
+        name: netos-plugin-deploy-pypi
+      vars:
+        PLUGIN_ADD: netos
+      when: NETOS_CORE_PLUGIN_ADD is defined
+      tags: always
+
+    # For Insights Plugin
+    - name: Deploy Netos Insights via Netos Internal PyPI
+      import_role:
+        name: netos-plugin-deploy-pypi
+      vars:
+        PLUGIN_ADD: netos_reporting
+      when: NETOS_INSIGHTS_PLUGIN_ADD is defined
+      tags: always
+
+    # For Projects Plugin
+    - name: Deploy Netos Projects via Netos Internal PyPI
+      import_role:
+        name: netos-plugin-deploy-pypi
+      vars:
+        PLUGIN_ADD: netos_model_builder
+      when: NETOS_PROJECTS_PLUGIN_ADD is defined
+      tags: always
+
+    # For Fabric Plugin
+    - name: Deploy Netos Fabric via Netos Internal PyPI
+      import_role:
+        name: netos-plugin-deploy-pypi
+      vars:
+        PLUGIN_ADD: netos_fabric
+      when: NETOS_FABRIC_PLUGIN_ADD is defined
+      tags: always
+
+    - name: Restart NetBox Processes
+      import_role:
+        name: netbox-restart
+      tags: always
+
+    - name: Netos Plugin Version Report After Deployment
+      import_role:
+        name: netos-plugin-version-check
+      tags: always
+
+    - name: Preload the Netos Insights report cache
+      import_role:
+        name: netos-preload-cache
+      tags: always

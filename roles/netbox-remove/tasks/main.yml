@@ -1,0 +1,43 @@
+---
+# tasks file for netbox-remove
+
+  - name: Stop NetBox services
+    ansible.builtin.systemd:
+      name: "{{ item }}"
+      state: stopped
+    loop:
+      - netbox
+      - netbox-rq
+
+  - name: Remove NetBox systemd service files
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /etc/systemd/system/netbox.service
+      - /etc/systemd/system/netbox-rq.service
+
+  - name: Remove NetBox installation directory
+    ansible.builtin.file:
+      path: /opt/netbox
+      state: absent
+
+  - name: Restart PostgreSQL to kill existing connections
+    ansible.builtin.systemd:
+      name: postgresql
+      state: restarted
+
+  - name: Switch to postgres user and drop the NetBox database
+    ansible.builtin.shell: |
+      sudo -u postgres psql -c "DROP DATABASE IF EXISTS netbox;"
+
+  - name: Restart PostgreSQL service
+    ansible.builtin.systemd:
+      name: postgresql
+      state: restarted
+
+  - name: Remove existing virtual environment
+    become_user: netbox
+    file:
+      path: "{{ NETBOX_INSTALL_DIR }}/venv"
+      state: absent

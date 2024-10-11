@@ -1,0 +1,127 @@
+---
+# tasks file for netbox-backup
+- name: Create backup directory structure {{ BACKUP_DIR }} if it doesn't exist
+  file:
+    path: "{{ BACKUP_DIR }}"
+    state: directory
+    mode: '0755'
+
+- name: Set the backup file date timestamp
+  set_fact:
+    backup_date: "{{ lookup('pipe', 'date +%m_%d_%Y_%H_%M') }}"
+
+- name: For NetBox restores, set variable in "NetBox Backup Settings" Semaphore environment
+  debug:
+    msg: "RESTORE_FILE_TIMESTAMP: {{ backup_date }}"
+
+- name: Set retention period based on retention type (days or weeks)
+  set_fact:
+    retention_period_days: |
+      {% if RETENTION_TYPE == 'days' %}
+        {{ RETENTION_PERIOD }}d
+      {% elif RETENTION_TYPE == 'weeks' %}
+        {{ RETENTION_PERIOD * 7 }}d
+      {% else %}
+        14d  # Default to 14 days if no retention type is provided
+      {% endif %}
+
+- name: Find backups older than the retention period for rotation
+  find:
+    paths: "{{ BACKUP_DIR }}"
+    age: "{{ retention_period_days | trim }}"
+    recurse: yes
+  register: old_backups
+
+- name: Remove old NetBox backups based on retention period set in Semaphore
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ old_backups.files }}"
+
+- name: Backup NetBox media directory
+  ansible.builtin.archive:
+    path: /opt/netbox/netbox/media
+    dest: "{{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz"
+    format: gz
+
+- name: Encrypt Netbox media backup using encryption key set in Semaphore Environment variable
+  command: >
+    openssl enc -aes-256-cbc -salt -in {{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz -out {{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz.enc -k {{ ENCRYPTION_KEY }}
+  args:
+    removes: "{{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz"
+
+- name: Remove unencrypted NetBox media backup file
+  ansible.builtin.file:
+    path: "{{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz"
+    state: absent
+
+- name: Stop NetBox services to ensure consistent PostgreSQL database backup
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+  with_items:
+    - netbox
+    - netbox-rq
+
+- name: Backup Netbox database using encryption key set in Semaphore Environment variable
+  shell: >
+    PGPASSWORD={{ NETBOX_DB_PASS }} pg_dump --username {{ NETBOX_DB_USER }} --host localhost {{ NETBOX_DB_NAME }} | gzip > {{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+
+- name: Encrypt NetBox database backup
+  command: >
+    openssl enc -aes-256-cbc -salt -in {{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz -out {{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz.enc -k {{ ENCRYPTION_KEY }}
+  args:
+    removes: "{{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz"
+
+- name: Remove unencrypted NetBox database backup file
+  ansible.builtin.file:
+    path: "{{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz"
+    state: absent
+
+- name: Start NetBox services after the backup
+  systemd:
+    name: "{{ item }}"
+    state: started
+  with_items:
+    - netbox
+    - netbox-rq
+
+- name: Query NetBox status API to capture status for future restores
+  uri:
+    url: "http://127.0.0.1:8001/api/status/"
+    method: GET
+    return_content: yes
+    status_code: 200
+    headers:
+      Content-Type: "application/json"
+  register: api_response
+
+- name: Dump NetBox status into a JSON file in the backup directory
+  copy:
+    content: "{{ api_response.content | from_json | to_nice_json }}"
+    dest: "{{ BACKUP_DIR }}/netbox_status_{{ backup_date }}.json"
+  when: api_response.status == 200
+
+- name: Install "sshpass" if not already installed to enable SFTP (if enabled)
+  package:
+    name: sshpass
+    state: present
+  when: SFTP_ENABLED == "Yes"
+
+# This task will only run if SFTP_ENABLED=Yes in the Semaphore environment: NetBox Backup Settings 
+
+- name: Transfer encrypted backups via SFTP to {{ SFTP_HOST }}
+  shell: |
+    sshpass -p {{ SFTP_PASSWORD }} sftp -o StrictHostKeyChecking=no {{ SFTP_USER }}@{{ SFTP_HOST }} << EOF
+    put {{ BACKUP_DIR }}/netbox_db_{{ backup_date }}.sql.gz.enc
+    put {{ BACKUP_DIR }}/netbox_media_{{ backup_date }}.tar.gz.enc
+    put {{ BACKUP_DIR }}/netbox_status_{{ backup_date }}.json
+    EOF
+  when: SFTP_ENABLED == "Yes"
+
+- name: The backup is complete
+  ansible.builtin.debug:
+    msg: Decrypt files like this "sudo openssl enc -aes-256-cbc -d -in BACKUP_FILE.enc -out OUTPUT.sql.gz/.tar.gz"

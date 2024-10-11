@@ -1,0 +1,18 @@
+---
+# tasks file for netbox-housekeeping
+
+- name: Run NetBox housekeeping maintenance script
+  command: /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py housekeeping
+  become: yes
+  args:
+    chdir: /opt/netbox/netbox
+
+- name: Ensure netbox and netbox-rq services are started and enabled
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: no
+  with_items:
+    - netbox
+    - netbox-rq

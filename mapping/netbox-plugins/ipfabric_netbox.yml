@@ -1,0 +1,82 @@
+ipfabric_netbox:
+  name: "IP Fabric NetBox"
+  description: "This plugin allows the integration and data synchronization between IP Fabric and NetBox."
+  git_url: "https://gitlab.com/ip-fabric/integrations/ipfabric-netbox"
+  version_prefix: "v" # some tags in GitHub/GitLab have a "v" before them, some don't. Add a "v" here as required.
+  file_type: "zip"
+  version_mapping:
+
+    - netbox_version: "4.1.3"
+      plugin_version: "3.1.0"
+
+    - netbox_version: "4.1.2"
+      plugin_version: "3.1.0"
+
+    - netbox_version: "4.1.1"
+      plugin_version: "3.1.0"
+
+    - netbox_version: "4.1.0"
+      plugin_version: "3.1.0"
+
+    - netbox_version: "4.0.11"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.10"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.9"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.8"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.7"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.6"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.5"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.4"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.3"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.2"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.1"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "4.0.0"
+      plugin_version: "3.0.1"
+
+    - netbox_version: "3.7.8"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.7"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.6"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.5"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.4"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.3"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.2"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.1"
+      plugin_version: "2.0.6"
+
+    - netbox_version: "3.7.0"
+      plugin_version: "2.0.6"

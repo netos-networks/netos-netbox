@@ -1,0 +1,23 @@
+---
+# tasks file for semaphore-repo-netbox
+
+- name: Update the Netos NetBox repository
+  become: yes
+  git:
+    repo: "{{ NETOS_NETBOX_GIT }}"
+    dest: /netos/netos-netbox
+    force: yes
+    update: yes
+  register: git_output
+
+- name: Find all bash scripts in the netos-netbox directory
+  find:
+    paths: /netos/netos-netbox/scripts/bash
+    patterns: "*.sh"
+  register: bash_scripts
+
+- name: Ensure all bash scripts are executable
+  file:
+    path: "{{ item.path }}"
+    mode: '0755'
+  loop: "{{ bash_scripts.files }}"

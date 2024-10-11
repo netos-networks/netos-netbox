@@ -1,0 +1,64 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - ./vars/env-netbox-settings.yml
+
+  tasks:
+
+    - name: Set plugin to ipfabric_netbox
+      set_fact:
+        PLUGIN_ADD_TAG: ipfabric_netbox
+      tags: ipfabric_netbox
+
+    - name: Set plugin to netbox_acls
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_acls
+      tags: netbox_acls
+
+    - name: Set plugin to netbox_bgp
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_bgp
+      tags: netbox_bgp
+
+    - name: Set plugin to netbox_data_flows
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_data_flows
+      tags: netbox_data_flows
+
+    - name: Set plugin to netbox_plugin_auth_saml2
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_plugin_auth_saml2
+      tags: netbox_plugin_auth_saml2
+
+    - name: Set plugin to netbox_otp_plugin
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_otp_plugin
+      tags: netbox_otp_plugin 
+
+    - name: Set plugin to netbox_attachments
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_attachments
+      tags: netbox_attachments
+
+    - name: Set plugin to netbox_reorder_rack
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_reorder_rack
+      tags: netbox_reorder_rack
+
+    - name: Set plugin to netbox_topology_views
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_topology_views
+      tags: netbox_topology_views
+
+    - name: Set plugin to netbox_secrets
+      set_fact:
+        PLUGIN_ADD_TAG: netbox_secrets
+      tags: netbox_secrets
+
+    - name: Import netbox-deploy role with variable
+      import_role:
+        name: netbox-plugin-disable
+      vars:
+        PLUGIN_ADD: "{{ PLUGIN_ADD_TAG }}"
+      tags: always

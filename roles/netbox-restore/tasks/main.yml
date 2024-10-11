@@ -1,0 +1,190 @@
+---
+# tasks file for netbox-restore
+
+- name: Fetch current NetBox version and plugin status from API
+  uri:
+    url: "http://127.0.0.1:8001/api/status/"
+    method: GET
+    return_content: yes
+    headers:
+      Content-Type: "application/json"
+  register: api_response
+  ignore_errors: yes
+
+- name: Confirm whether NetBox is running, and fail if it's not
+  fail:
+    msg: |
+      Failed to fetch NetBox status from API. Is NetBox installed and running??
+      Error message: {{ api_response.msg }}
+  when: api_response.status == -1
+
+- name: Check if the NetBox backup files exist in /netos/backups/netbox
+  stat:
+    path: "{{ BACKUP_DIR }}/{{ item }}"
+  loop:
+    - "netbox_status_{{ RESTORE_FILE_TIMESTAMP }}.json"
+    - "netbox_db_{{ RESTORE_FILE_TIMESTAMP }}.sql.gz.enc"
+    - "netbox_media_{{ RESTORE_FILE_TIMESTAMP }}.tar.gz.enc"
+  register: backup_files
+
+- name: Fail if any backup files are missing in /netos/backups/netbox
+  fail:
+    msg: "One or more backup files are missing."
+  when: backup_files.results | selectattr('stat.exists', 'eq', False) | list | length > 0
+
+- name: Load backup JSON status file to verify target NetBox version
+  slurp:
+    src: "{{ BACKUP_DIR}}/netbox_status_{{ RESTORE_FILE_TIMESTAMP }}.json"
+  register: restore_json
+
+- name: Decode restore JSON
+  set_fact:
+    restore_data: "{{ restore_json.content | b64decode | from_json }}"
+
+- name: Compare NetBox version on target with restore file
+  fail:
+    msg: |
+      NetBox version mismatch detected!
+      - Running Version: {{ (api_response.content | from_json)['netbox-version'] }}
+      - Expected Version from Restore: {{ restore_data['netbox-version'] }}
+      - Action: Please ensure that the NetBox instance is running the correct version before proceeding with the restore.
+  when:
+    - (api_response.content | from_json)['netbox-version'] != restore_data['netbox-version']
+    - BYPASS_PLUGIN_CHECK != "Yes"
+
+- name: Compare NetBox plugins on target with restore file
+  fail:
+    msg: |
+      Plugin version mismatch detected!
+      - Running Plugins: {{ (api_response.content | from_json)['plugins'] | default('{}') }}
+      - Expected Plugins from Restore: {{ restore_data['plugins'] }}
+      - Differences Found:
+        {% for plugin, version in restore_data['plugins'].items() %}
+          {% if (api_response.content | from_json)['plugins'][plugin] is not defined %}
+            - Plugin {{ plugin }} is missing in the running NetBox instance.
+          {% elif (api_response.content | from_json)['plugins'][plugin] != version %}
+            - Plugin {{ plugin }} has version {{ (api_response.content | from_json)['plugins'][plugin] }}, expected {{ version }}.
+          {% endif %}
+        {% endfor %}
+      - Action: Please ensure that the plugins match the expected versions before proceeding with the restore.
+  when: 
+    - (api_response.content | from_json)['plugins'] != restore_data['plugins']
+    - BYPASS_PLUGIN_CHECK != "Yes"
+
+- name: Decrypt NetBox media archive
+  command: >
+    openssl enc -aes-256-cbc -d -in {{ BACKUP_DIR }}/netbox_media_{{ RESTORE_FILE_TIMESTAMP }}.tar.gz.enc -out {{ BACKUP_DIR }}/decrypted_media_backup.tar.gz -k {{ ENCRYPTION_KEY }}
+  args:
+    executable: /bin/bash
+
+- name: Extract NetBox media files from backup
+  ansible.builtin.unarchive:
+    src: "{{ BACKUP_DIR }}/decrypted_media_backup.tar.gz"
+    dest: /opt/netbox/netbox
+    remote_src: yes
+
+- name: Decrypt NetBox database file
+  command: >
+    openssl enc -aes-256-cbc -d -in {{ BACKUP_DIR }}/netbox_db_{{ RESTORE_FILE_TIMESTAMP }}.sql.gz.enc -out {{ BACKUP_DIR }}/decrypted_netbox_db.sql -k {{ ENCRYPTION_KEY }}
+
+- name: Install psycopg2 using apt if it's missing
+  apt:
+    name: python3-psycopg2
+    state: present
+    update_cache: yes
+  register: apt_result
+  retries: 20
+  delay: 20
+  until: apt_result is succeeded
+
+- name: Stop NetBox services to stop it connecting to the PostgreSQL database
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+  with_items:
+    - netbox
+    - netbox-rq
+
+- name: Restart PostgreSQL to terminate all active sessions from NetBox
+  systemd:
+    name: postgresql
+    state: restarted
+  become: yes
+
+- name: Switch to postgres user and drop (delete) the NetBox database
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS netbox;"
+
+- name: Ensure required databases for NetBox are created
+  become: yes
+  become_user: postgres
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_db:
+    name: "{{ item }}"
+  with_items:
+    - "{{ NETBOX_DB_NAME }}"
+
+- name: Create DB user for NetBox with all privileges on the NetBox database
+  become: yes
+  become_user: postgres
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_user:
+    db: "{{ NETBOX_DB_NAME }}"
+    name: "{{ NETBOX_DB_USER }}"
+    password: "{{ NETBOX_DB_PASS }}"
+    priv: "ALL"
+
+- name: "Grant all privileges on schema public to user: {{ NETBOX_DB_USER }}"
+  become: yes
+  become_user: postgres
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_privs:
+    db: "{{ NETBOX_DB_NAME }}"             
+    privs: ALL
+    objs: public
+    type: schema
+    roles: "{{ NETBOX_DB_USER }}"        
+    state: present
+
+- name: Restore NetBox database with a 60 minute timeout
+  ansible.builtin.shell: |
+    timeout 3600 gunzip -c {{ BACKUP_DIR }}/decrypted_netbox_db.sql | PGPASSWORD={{ NETBOX_DB_PASS }} psql --username {{ NETBOX_DB_USER }} --host localhost --dbname {{ NETBOX_DB_NAME }}
+  args:
+    executable: /bin/bash
+  environment:
+    PGPASSWORD: "{{ NETBOX_DB_PASS }}"
+  become: yes
+  become_user: postgres
+  register: restore_output
+  failed_when: restore_output.rc != 0
+
+- name: Clean up decrypted NetBox database file from backup directory
+  file:
+    path: "{{ BACKUP_DIR }}/decrypted_netbox_db.sql"
+    state: absent
+
+- name: Clean up decrypted NetBox media archive from backup directory
+  file:
+    path: "{{ BACKUP_DIR }}/decrypted_media_backup.tar.gz"
+    state: absent
+
+- name: Restart PostgreSQL
+  systemd:
+    name: postgresql
+    state: restarted
+
+- name: Restart redis
+  systemd:
+    name: redis-server
+    state: restarted
+
+- name: Restart NetBox services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - netbox
+    - netbox-rq

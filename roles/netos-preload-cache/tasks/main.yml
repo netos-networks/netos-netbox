@@ -1,0 +1,63 @@
+---
+# tasks file for netos-preload-cache
+
+- name: Flush the redis database cache to remove stale Netos reporting entries
+  shell: |
+    redis-cli <<EOF
+    select 1
+    flushdb
+    EOF
+  become: yes
+  ignore_errors: yes
+
+- name: Pre-load the Netos Insights Hardware and EoX Reports
+  shell: |
+    . /opt/netbox/venv/bin/activate
+    python3 manage.py preload_charts hardware
+  args:
+    chdir: /opt/netbox/netbox/
+    executable: /bin/bash
+  environment:
+    VIRTUAL_ENV: /opt/netbox/venv
+    PATH: "{{ ansible_env.PATH }}:/opt/netbox/venv/bin"
+  become: yes
+  ignore_errors: yes
+
+- name: Pre-load the Netos Insights Network TBM Reports
+  shell: |
+    . /opt/netbox/venv/bin/activate
+    python3 manage.py preload_charts taxonomy
+  args:
+    chdir: /opt/netbox/netbox/
+    executable: /bin/bash
+  environment:
+    VIRTUAL_ENV: /opt/netbox/venv
+    PATH: "{{ ansible_env.PATH }}:/opt/netbox/venv/bin"
+  become: yes
+  ignore_errors: yes
+
+- name: Pre-load the Netos Insights Telecom TBM Reports
+  shell: |
+    . /opt/netbox/venv/bin/activate
+    python3 manage.py preload_charts telecom-taxonomy
+  args:
+    chdir: /opt/netbox/netbox/
+    executable: /bin/bash
+  environment:
+    VIRTUAL_ENV: /opt/netbox/venv
+    PATH: "{{ ansible_env.PATH }}:/opt/netbox/venv/bin"
+  become: yes
+  ignore_errors: yes
+
+- name: Pre-load the Netos Insights Financial Forecast Reports
+  shell: |
+    . /opt/netbox/venv/bin/activate
+    python3 manage.py preload_charts finance
+  args:
+    chdir: /opt/netbox/netbox/
+    executable: /bin/bash
+  environment:
+    VIRTUAL_ENV: /opt/netbox/venv
+    PATH: "{{ ansible_env.PATH }}:/opt/netbox/venv/bin"
+  become: yes
+  ignore_errors: yes

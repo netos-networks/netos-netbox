@@ -1,0 +1,103 @@
+netbox_upgrade_paths:
+  3.6.0:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.1:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.2:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.3:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.4:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.5:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.6:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.7:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.8:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.6.9:
+    patch: 3.6.9
+    next_major: 3.7.8
+  3.7.0:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.1:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.2:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.3:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.4:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.5:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.6:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.7:
+    patch: 3.7.8
+    next_major: 4.0.11
+  3.7.8:
+    patch: 3.7.8
+    next_major: 4.0.11
+  4.0.0:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.1:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.2:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.3:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.5:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.6:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.7:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.8:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.9:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.10:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.0.11:
+    patch: 4.0.11
+    next_major: 4.1.0
+  4.1.0:
+    patch: 4.1.2
+    next_major: null
+  4.1.1:
+    patch: 4.1.3
+    next_major: null
+  4.1.2:
+    patch: 4.1.3
+    next_major: null
+  4.1.3:
+    patch: 4.1.3
+    next_major: null

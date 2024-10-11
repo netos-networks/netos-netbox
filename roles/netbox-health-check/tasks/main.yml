@@ -1,0 +1,74 @@
+---
+# tasks file for netbox-health-check
+
+- name: Check NetBox service status using systemctl
+  shell: "systemctl is-active netbox"
+  register: netbox_service_status
+  ignore_errors: yes
+
+- name: Display NetBox service status
+  debug:
+    msg: "NetBox service status: {{ netbox_service_status.stdout }}"
+
+- name: Check NetBox RQ service status using systemctl
+  shell: "systemctl is-active netbox-rq"
+  register: netbox_rq_service_status
+  ignore_errors: yes
+
+- name: Display NetBox RQ service status
+  debug:
+    msg: "NetBox RQ service status: {{ netbox_rq_service_status.stdout }}"
+
+- name: Run NetBox manage.py check
+  shell: |
+    . /opt/netbox/venv/bin/activate
+    python3 manage.py check
+  args:
+    chdir: /opt/netbox/netbox/
+    executable: /bin/bash
+  environment:
+    VIRTUAL_ENV: /opt/netbox/venv
+    PATH: "{{ ansible_env.PATH }}:/opt/netbox/venv/bin"
+  become: yes
+  ignore_errors: yes
+  register: netbox_check_result
+
+- name: Display NetBox manage.py check output
+  debug:
+    var: netbox_check_result.stderr
+
+- name: Check for errors in NetBox logs /var/log/netbox logs
+  shell: "grep -i 'error' /var/log/nginx/netbox.error.log || true"
+  register: netbox_log_errors
+  ignore_errors: yes
+
+- name: Display any errors found in NetBox logs
+  debug:
+    var: netbox_log_errors.stdout_lines
+
+- name: Check NetBox logs for warnings
+  shell: "grep -i 'warning' /var/log/nginx/netbox.error.log || true"
+  register: netbox_log_warnings
+  ignore_errors: yes
+
+- name: Display any warnings found in NetBox logs
+  debug:
+    var: netbox_log_warnings.stdout_lines
+
+- name: Check journalctl logs for NetBox issues
+  shell: "journalctl -u netbox --since '24 hours ago' -n 250 | grep -i 'error' || true"
+  register: journalctl_errors
+  ignore_errors: yes
+
+- name: Display errors from journalctl for NetBox
+  debug:
+    var: journalctl_errors.stdout_lines
+
+- name: Check journalctl logs for NetBox RQ issues
+  shell: "journalctl -u netbox-rq --since '24 hours ago' -n 250 | grep -i 'error' || true"
+  register: journalctl_rq_errors
+  ignore_errors: yes
+
+- name: Display errors from journalctl for NetBox RQ
+  debug:
+    var: journalctl_rq_errors.stdout_lines

@@ -1,0 +1,90 @@
+---
+# tasks file for netbox-database
+
+- name: Ensure postgresql install directory exists
+  file:
+    path: /opt/database
+    state: directory
+
+- name: Create Python virtual environment
+  shell: python3 -m venv /opt/database/venv
+
+- name: Ensure required Packages (postgresql, libpq-dev, python3-pip) are installed
+  apt:
+    name:
+      - postgresql
+      - libpq-dev
+      - python3-pip
+      - acl
+      - postgresql-contrib
+    state: present
+    update_cache: yes
+  when: ansible_distribution in ['Debian', 'Ubuntu']
+  register: apt_result
+  retries: 10
+  delay: 20
+  until: apt_result is succeeded
+
+- name: Install psycopg2 python libraries, a PostgreSQL adapter for Python
+  pip:
+    name: ["psycopg2","psycopg2-binary"]
+    state: present
+    virtualenv: /opt/database/venv
+
+- name: Start and enable the postgresql service
+  service:
+    name: postgresql
+    state: started
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Configure postgresql to use a custom pg_hba.conf template
+  template:
+    src: pg_hba.conf
+    dest: "/etc/postgresql/{{ POSTGRESQL_VERSION }}/main/pg_hba.conf"
+
+- name: Restart the PostgreSQL service to apply configuration changes
+  systemd:
+    name: postgresql
+    state: restarted
+
+- name: Ensure required databases for NetBox are created
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_db:
+    name: "{{ item }}"
+  with_items:
+    - "{{ NETBOX_DB_NAME }}"
+
+- name: Create DB User for Netbox with all privileges on the Netbox database
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_user:
+    db: "{{ NETBOX_DB_NAME }}"
+    name: "{{ NETBOX_DB_USER }}"
+    password: "{{ NETBOX_DB_PASSWORD }}"
+    priv: "ALL"
+
+- name: "Grant all privileges on schema public to {{ NETBOX_DB_USER }}"
+  vars:
+    ansible_python_interpreter: /opt/database/venv/bin/python
+  postgresql_privs:
+    db: "{{ NETBOX_DB_NAME }}"             
+    privs: ALL
+    objs: public
+    type: schema
+    roles: "{{ NETBOX_DB_USER }}"        
+    state: present
+
+- name: Ensure Postgresql listens on all interfaces
+  lineinfile:
+    path: "/etc/postgresql/{{ POSTGRESQL_VERSION }}/main/postgresql.conf"
+    regexp: ^#listen_addresses = 'localhost'
+    line: listen_addresses = '*'
+  notify: restart postgresql
+
+- name: Allow External Access on hba
+  lineinfile:
+    path: "/etc/postgresql/{{ POSTGRESQL_VERSION }}/main/pg_hba.conf"
+    line: "host all  all    0.0.0.0/0  md5"
+  notify: restart postgresql

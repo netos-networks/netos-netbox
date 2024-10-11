@@ -1,0 +1,49 @@
+---
+# tasks file for netos-airflow-key
+
+- name: Create Airflow API User for Netbox
+  django_manage: 
+    app_path: "{{ NETBOX_INSTALL_DIR }}/netbox"
+    command: "createsuperuser --noinput"
+    virtualenv: "{{ NETBOX_INSTALL_DIR }}/venv"
+  environment:
+    - DJANGO_SUPERUSER_USERNAME: "{{ AIRFLOW_API_USER_USERNAME }}"
+    - DJANGO_SUPERUSER_PASSWORD: "{{ AIRFLOW_API_USER_PASSWORD }}"
+    - DJANGO_SUPERUSER_EMAIL: "airflow@netos.dev"
+  ignore_errors: yes
+
+- name: Provision API token for user
+  uri:
+    url: "http://127.0.0.1:8001/api/users/tokens/provision/"
+    method: POST
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    body_format: json
+    body:
+      username: "{{ AIRFLOW_API_USER_USERNAME }}"
+      password: "{{ AIRFLOW_API_USER_PASSWORD }}"
+    return_content: yes
+    status_code: 201  # Accepts 201 as a valid status code
+  register: response
+
+- name: Check API token authorization
+  uri:
+    url: "http://127.0.0.1:8001/api/plugins/"
+    method: GET
+    headers:
+      Authorization: "Token {{ response.json.key }}"
+    return_content: yes
+  register: api_check_response
+
+- name: Push the variable to the local Airflow instance
+  shell: |
+    export AIRFLOW_HOME=/opt/airflow
+    /opt/airflow/venv/bin/airflow variables set "NETBOX_API_KEY" "{{ response.json.key }}"
+  args:
+    executable: /bin/bash
+  environment:
+    AIRFLOW_HOME: "/opt/airflow"
+  become: true
+  become_user: airflow
+

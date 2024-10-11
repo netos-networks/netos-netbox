@@ -1,0 +1,9 @@
+ - hosts: 127.0.0.1
+  #  remote_user: ansible
+   connection: local
+   become: yes
+   vars_files:
+    - ./vars/env-netbox-settings.yml
+   roles:
+    - nginx-netbox-cert-self-signed
+   

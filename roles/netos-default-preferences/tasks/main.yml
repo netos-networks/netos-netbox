@@ -1,0 +1,28 @@
+---
+# tasks file for netos-default-preferences
+
+- name: Insert contents of netos-field-choices.py if the block doesn't already exist
+  blockinfile:
+    path: /opt/netbox/netbox/netbox/configuration.py
+    marker_begin: "BEGIN netos-field-choices"
+    marker_end: "END netos-field-choices"
+    block: |
+      {{ lookup('file', 'files/netos-field-choices.py') }}
+
+- name: Insert contents of netos-preferences.py if the block doesn't already exist
+  blockinfile:
+    path: /opt/netbox/netbox/netbox/configuration.py
+    marker_begin: "BEGIN netos-preferences"
+    marker_end: "END netos-preferences"
+    block: |
+      {{ lookup('file', 'files/netos-preferences.py') }}
+
+- name: Restart NetBox process and queuing process (RQ)
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - netbox
+    - netbox-rq

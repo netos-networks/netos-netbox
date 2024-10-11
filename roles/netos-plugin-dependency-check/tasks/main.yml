@@ -1,0 +1,28 @@
+---
+# tasks file for netos-plugin-check
+
+- name: Ensure required Python packages for Netos Plugins are installed
+  pip:
+    name: "{{ item.name }}=={{ item.version }}"
+    virtualenv: /opt/netbox/venv
+  loop:
+    - { name: 'pandas', version: '2.2.1' }
+    - { name: 'openpyxl', version: '3.1.2' }
+    - { name: 'xlsxwriter', version: '3.1.2' }
+    - { name: 'croniter', version: '2.0.1' }
+#    - { name: 'celery', version: '5.3.4' }
+    - { name: 'elasticsearch', version: '8.8.0' }
+    - { name: 'numpy', version: '1.26.4' }
+  register: pip_install_results
+
+- name: Check if setuptools is installed
+  command: /opt/netbox/venv/bin/pip show setuptools
+  register: setuptools_check
+  ignore_errors: true
+  no_log: true
+
+- name: Install setuptools in the virtual environment if not present
+  pip:
+    name: setuptools
+    virtualenv: /opt/netbox/venv
+  when: setuptools_check.rc != 0

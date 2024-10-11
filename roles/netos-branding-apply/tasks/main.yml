@@ -1,0 +1,71 @@
+---
+# tasks file for netos-branding-apply
+
+- name: Replace NetBox logo with Netos logo in layout.html
+  replace:
+    path: /opt/netbox/netbox/templates/base/layout.html
+    regexp: |
+      {% raw %}<img src="{% static 'netbox_logo.svg' %}" alt="{% trans "NetBox logo" %}" width="200px" />{% endraw %}
+    replace: |
+      {% raw %}<img src="{% static 'netos_logo.svg' %}" alt="{% trans "Netos logo" %}" width="200px" />{% endraw %}
+  notify:
+    - restart netbox services
+
+- name: Replace NetBox logo (second occurrence) with Netos logo in layout.html
+  replace:
+    path: /opt/netbox/netbox/templates/base/layout.html
+    regexp: |
+      {% raw %}<img src="{% static 'netbox_logo.svg' %}" alt="{% trans "NetBox logo" %}" height="40" />{% endraw %}
+    replace: |
+      {% raw %}<img src="{% static 'netos_logo.svg' %}" alt="{% trans "Netos logo" %}" height="40" />{% endraw %}
+  notify:
+    - restart netbox services
+
+- name: Replace NetBox logo with Netos logo in login.html
+  replace:
+    path: /opt/netbox/netbox/templates/login.html
+    regexp: |
+      {% raw %}<img src="{% static 'netbox_logo.svg' %}" height="80" alt="{% trans "NetBox logo" %}" />{% endraw %}
+    replace: |
+      {% raw %}<img src="{% static 'netos_logo.svg' %}" height="80" alt="{% trans "Netos logo" %}" />{% endraw %}
+  notify:
+    - restart netbox services
+
+- name: Replace NetBox logo with Netos logo in sidenav.html
+  replace:
+    path: /opt/netbox/netbox/templates/base/sidenav.html
+    regexp: |
+      {% raw %}<img src="{% static 'netbox_logo.svg' %}" height="48" class="sidenav-brand-img" alt="{% trans "NetBox Logo" %}">{% endraw %}
+    replace: |
+      {% raw %}<img src="{% static 'netos_logo.svg' %}" height="48" class="sidenav-brand-img" alt="{% trans "Netos Logo" %}">{% endraw %}
+  notify:
+    - restart netbox services
+
+- name: Copy netos_logo.svg to static directory
+  copy:
+    src: "netos_logo.svg"
+    dest: /opt/netbox/netbox/static/netos_logo.svg
+  notify:
+    - restart netbox services
+
+- name: Copy netos_icon.svg to static directory
+  copy:
+    src: "netos_icon.svg"
+    dest: /opt/netbox/netbox/static/netos_icon.svg
+  notify:
+    - restart netbox services
+
+- name: Copy netos_logo.svg to project-static directory
+  copy:
+    src: "netos_logo.svg"
+    dest: /opt/netbox/netbox/project-static/img/netos_logo.svg
+  notify:
+    - restart netbox services
+
+- name: Copy netos_icon.svg to project-static directory
+  copy:
+    src: "netos_icon.svg"
+    dest: /opt/netbox/netbox/project-static/img/netos_icon.svg
+  notify:
+    - restart netbox services
+
